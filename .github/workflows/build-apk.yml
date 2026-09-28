@@ -14,10 +14,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Extract project
+      - name: Extract Cash POS project
         run: |
           unzip -o CashPOS_Android_Project.zip
-          find CashPOS_Android -maxdepth 3 -type f | sort
+          find CashPOS_Android -maxdepth 4 -type f | sort
 
       - name: Setup Java 17
         uses: actions/setup-java@v4
@@ -26,13 +26,26 @@ jobs:
           java-version: '17'
 
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK
         run: |
-          sdkmanager "platform-tools"
-          sdkmanager "platforms;android-35"
-          sdkmanager "build-tools;35.0.0"
+          echo "ANDROID_HOME=$ANDROID_HOME"
+          echo "ANDROID_SDK_ROOT=$ANDROID_SDK_ROOT"
+
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+
+          if [ ! -f "$SDKMANAGER" ]; then
+            echo "sdkmanager not found"
+            find "$ANDROID_HOME" -name sdkmanager -type f | head -20
+            exit 1
+          fi
+
+          "$SDKMANAGER" --version
+
+          yes | "$SDKMANAGER" --licenses || true
+
+          "$SDKMANAGER" \
+            "platform-tools" \
+            "platforms;android-35" \
+            "build-tools;35.0.0"
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -41,7 +54,12 @@ jobs:
 
       - name: Build APK
         working-directory: CashPOS_Android
-        run: gradle assembleDebug --stacktrace
+        run: |
+          gradle assembleDebug --stacktrace
+
+      - name: Find APK
+        run: |
+          find CashPOS_Android -type f -name "*.apk" -print
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
